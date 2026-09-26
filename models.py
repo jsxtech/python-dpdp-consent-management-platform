@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import Column, String, DateTime, Boolean, Text, create_engine, Index
+from sqlalchemy import Column, String, DateTime, Boolean, Text, create_engine, Index, true
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from datetime import datetime, timezone
 
@@ -18,14 +18,21 @@ class Consent(Base):
     id = Column(String, primary_key=True)
     user_id = Column(String, nullable=False, index=True)
     purpose = Column(String, nullable=False)
-    granted = Column(Boolean, default=True)
+    granted = Column(Boolean, nullable=False, default=True, server_default=true())
     granted_at = Column(DateTime(timezone=True), default=utc_now)
     withdrawn_at = Column(DateTime(timezone=True), nullable=True)
     consent_metadata = Column("extra_metadata", Text, nullable=True)
 
     __table_args__ = (
         # Only one active (granted) consent per (user_id, purpose).
-        # Partial index so withdrawn rows don't count toward the constraint.
+        # Uses a PARTIAL unique index so withdrawn rows do not count toward the
+        # constraint, allowing a user to re-grant a purpose after withdrawal.
+        #
+        # NOTE: partial indexes are supported by SQLite and PostgreSQL only.
+        # MySQL does not support them, so on MySQL this DB-level guarantee is
+        # NOT enforced (a plain unique index would wrongly block re-granting a
+        # previously withdrawn purpose). On MySQL, uniqueness of active consents
+        # relies solely on the application-level check in grant_consent().
         Index(
             "uq_active_consent",
             "user_id",
