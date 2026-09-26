@@ -11,8 +11,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from models import Base
 from main import app, get_db
+from models import Base
 
 # Use StaticPool so all connections share the same in-memory database
 test_engine = create_engine(
@@ -90,6 +90,7 @@ class TestAuthentication:
         raw latin-1 header bytes.
         """
         from fastapi import HTTPException
+
         from main import verify_api_key
 
         with pytest.raises(HTTPException) as exc_info:
