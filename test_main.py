@@ -129,6 +129,39 @@ class TestConsentGrant:
         }, headers=HEADERS)
         assert response.status_code == 422
 
+    def test_grant_consent_idempotent_for_active(self):
+        """Re-granting the same active (user_id, purpose) returns the same record."""
+        first = client.post("/consent", json={
+            "user_id": "user1", "purpose": "marketing"
+        }, headers=HEADERS)
+        second = client.post("/consent", json={
+            "user_id": "user1", "purpose": "marketing"
+        }, headers=HEADERS)
+        assert first.status_code == 200
+        assert second.status_code == 200
+        assert first.json()["id"] == second.json()["id"]
+
+        # Only one active consent should exist.
+        listing = client.get("/consent/user1", headers=HEADERS)
+        assert len(listing.json()) == 1
+
+    def test_regrant_after_withdrawal_creates_new(self):
+        """After withdrawing, granting again creates a fresh active consent."""
+        first = client.post("/consent", json={
+            "user_id": "user1", "purpose": "marketing"
+        }, headers=HEADERS)
+        consent_id = first.json()["id"]
+        client.post("/consent/withdraw", json={
+            "user_id": "user1", "consent_id": consent_id
+        }, headers=HEADERS)
+
+        second = client.post("/consent", json={
+            "user_id": "user1", "purpose": "marketing"
+        }, headers=HEADERS)
+        assert second.status_code == 200
+        assert second.json()["id"] != consent_id
+        assert second.json()["granted"] is True
+
 
 # --- Get Consents ---
 
