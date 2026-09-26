@@ -80,6 +80,20 @@ class TestAuthentication:
         }, headers=HEADERS)
         assert response.status_code == 200
 
+    def test_non_ascii_api_key_rejected(self):
+        """A non-ASCII key must yield a clean 403, not a TypeError/500.
+
+        The HTTP test client enforces ASCII header values, so exercise the
+        auth dependency directly with a value Starlette could decode from
+        raw latin-1 header bytes.
+        """
+        from fastapi import HTTPException
+        from main import verify_api_key
+
+        with pytest.raises(HTTPException) as exc_info:
+            verify_api_key(api_key="\xe9-non-ascii-key")
+        assert exc_info.value.status_code == 403
+
 
 # --- Consent Grant ---
 
