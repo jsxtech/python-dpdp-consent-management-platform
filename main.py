@@ -71,7 +71,12 @@ app.add_middleware(
 
 
 def verify_api_key(api_key: str = Security(api_key_header)):
-    if not secrets.compare_digest(api_key, API_KEY):
+    # secrets.compare_digest raises TypeError on strings containing non-ASCII
+    # characters. Compare on the UTF-8 byte representation so a malformed
+    # header yields a clean 403 instead of an unhandled 500.
+    provided = api_key.encode("utf-8")
+    expected = API_KEY.encode("utf-8")
+    if not secrets.compare_digest(provided, expected):
         raise HTTPException(status_code=403, detail="Invalid API key")
     return api_key
 
@@ -161,7 +166,7 @@ def get_consents(
     user_id = validate_path_user_id(user_id)
     consents = db.query(Consent).filter(
         Consent.user_id == user_id
-    ).order_by(Consent.granted_at.desc()).limit(limit).offset(offset).all()
+    ).order_by(Consent.granted_at.desc(), Consent.id.desc()).limit(limit).offset(offset).all()
     return consents
 
 
@@ -205,5 +210,5 @@ def get_audit_logs(
     user_id = validate_path_user_id(user_id)
     logs = db.query(AuditLog).filter(
         AuditLog.user_id == user_id
-    ).order_by(AuditLog.timestamp.desc()).limit(limit).offset(offset).all()
+    ).order_by(AuditLog.timestamp.desc(), AuditLog.id.desc()).limit(limit).offset(offset).all()
     return logs
