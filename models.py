@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import Column, String, DateTime, Boolean, Text, create_engine
+from sqlalchemy import Column, String, DateTime, Boolean, Text, create_engine, Index
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from datetime import datetime, timezone
 
@@ -19,9 +19,22 @@ class Consent(Base):
     user_id = Column(String, nullable=False, index=True)
     purpose = Column(String, nullable=False)
     granted = Column(Boolean, default=True)
-    granted_at = Column(DateTime, default=utc_now)
-    withdrawn_at = Column(DateTime, nullable=True)
-    consent_metadata = Column("metadata", Text, nullable=True)
+    granted_at = Column(DateTime(timezone=True), default=utc_now)
+    withdrawn_at = Column(DateTime(timezone=True), nullable=True)
+    consent_metadata = Column("extra_metadata", Text, nullable=True)
+
+    __table_args__ = (
+        # Only one active (granted) consent per (user_id, purpose).
+        # Partial index so withdrawn rows don't count toward the constraint.
+        Index(
+            "uq_active_consent",
+            "user_id",
+            "purpose",
+            unique=True,
+            sqlite_where=(granted == True),
+            postgresql_where=(granted == True),
+        ),
+    )
 
 
 class AuditLog(Base):
@@ -30,7 +43,7 @@ class AuditLog(Base):
     id = Column(String, primary_key=True)
     user_id = Column(String, nullable=False, index=True)
     action = Column(String, nullable=False)
-    timestamp = Column(DateTime, default=utc_now)
+    timestamp = Column(DateTime(timezone=True), default=utc_now)
     details = Column(Text, nullable=True)
 
 
