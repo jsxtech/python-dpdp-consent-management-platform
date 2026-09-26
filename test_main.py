@@ -66,12 +66,14 @@ class TestAuthentication:
         response = client.post("/consent", json={
             "user_id": "user1", "purpose": "marketing"
         })
-        assert response.status_code == 403
+        # Missing credentials -> 401 Unauthorized (auto_error from APIKeyHeader).
+        assert response.status_code == 401
 
     def test_invalid_api_key(self):
         response = client.post("/consent", json={
             "user_id": "user1", "purpose": "marketing"
         }, headers={"X-API-Key": "wrong-key"})
+        # Present but wrong credentials -> 403 Forbidden.
         assert response.status_code == 403
 
     def test_valid_api_key(self):
