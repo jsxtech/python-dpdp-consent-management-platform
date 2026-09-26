@@ -1,9 +1,9 @@
 import logging
+import os
 import secrets
 import uuid
-import os
 from contextlib import asynccontextmanager
-from typing import List
+from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException, Depends, Path, Query, Security
 from fastapi.middleware.cors import CORSMiddleware
@@ -98,7 +98,7 @@ def get_db():
         db.close()
 
 
-def log_audit(db: Session, user_id: str, action: str, details: str = None):
+def log_audit(db: Session, user_id: str, action: str, details: Optional[str] = None):
     log = AuditLog(id=str(uuid.uuid4()), user_id=user_id, action=action, details=details)
     db.add(log)
 
@@ -182,7 +182,7 @@ def withdraw_consent(withdraw: ConsentWithdraw, db: Session = Depends(get_db), _
         if not consent:
             raise HTTPException(status_code=404, detail="Consent not found or already withdrawn")
 
-        consent.granted = False
+        consent.granted = False  # type: ignore[assignment]  # SQLAlchemy instance attr, not Column
         consent.withdrawn_at = utc_now()
         log_audit(db, withdraw.user_id, "CONSENT_WITHDRAWN", f"Consent ID: {withdraw.consent_id}")
         db.commit()
