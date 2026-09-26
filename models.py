@@ -1,7 +1,17 @@
 import os
-from sqlalchemy import Column, String, DateTime, Boolean, Text, create_engine, Index, true
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from datetime import datetime, timezone
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Index,
+    String,
+    Text,
+    create_engine,
+    true,
+)
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 
 class Base(DeclarativeBase):
