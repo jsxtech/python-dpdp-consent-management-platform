@@ -14,6 +14,7 @@ Minimal Python platform for DPDP Act 2023 compliance with consent management, au
 - ✅ **Timezone-aware Timestamps** - UTC timestamps for all records
 - ✅ **Configurable Database** - SQLite default, supports PostgreSQL/MySQL
 - ✅ **Prevents Double-withdrawal** - Validates consent state before withdrawal
+- ✅ **Idempotent Grants** - One active consent per user/purpose; re-granting returns the existing record
 
 ## Tech Stack
 
@@ -153,7 +154,7 @@ curl -X GET "http://localhost:8000/audit/user123" \
 - `granted` - Consent status (boolean)
 - `granted_at` - Timestamp when consent was granted
 - `withdrawn_at` - Timestamp when consent was withdrawn (nullable)
-- `metadata` - Additional information (optional)
+- `extra_metadata` - Additional information (optional; API field name is `metadata`)
 
 ### Audit Logs Table
 - `id` - Unique log identifier (UUID)
@@ -168,6 +169,8 @@ curl -X GET "http://localhost:8000/audit/user123" \
 
 - `API_KEY` - API key for authentication (required in production)
 - `DATABASE_URL` - Database connection string (default: `sqlite:///dpdp_consent.db`)
+- `APP_ENV` - Deployment environment (`development` default, or `production`). In production the server refuses to start with the default API key.
+- `CORS_ORIGINS` - Comma-separated list of allowed origins (default: none). Must not be `*` because credentials are enabled.
 
 ### Database URLs
 
