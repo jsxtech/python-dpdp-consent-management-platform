@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Depends, Path, Query, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
 from models import SessionLocal, Consent, AuditLog, Base, engine, utc_now
 from schemas import (
@@ -23,7 +23,21 @@ from schemas import (
 
 logger = logging.getLogger(__name__)
 
-API_KEY = os.getenv("API_KEY", "dev-key-change-in-production")
+DEFAULT_API_KEY = "dev-key-change-in-production"
+API_KEY = os.getenv("API_KEY", DEFAULT_API_KEY)
+APP_ENV = os.getenv("APP_ENV", "development").lower()
+
+if API_KEY == DEFAULT_API_KEY:
+    if APP_ENV in ("production", "prod"):
+        raise RuntimeError(
+            "API_KEY is set to the default development key in a production "
+            "environment. Set a strong API_KEY before starting the server."
+        )
+    logger.warning(
+        "Using the default development API key. Set the API_KEY environment "
+        "variable to a strong secret before deploying."
+    )
+
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
 
 
@@ -38,9 +52,18 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="DPDP Consent Management Platform", lifespan=lifespan)
 
 # CORS configuration
+_cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+# Browsers forbid credentialed requests with a wildcard origin, and it is a
+# security footgun. Refuse to start with that combination.
+if "*" in _cors_origins:
+    raise RuntimeError(
+        "CORS_ORIGINS cannot contain '*' when credentials are allowed. "
+        "List explicit origins instead."
+    )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "").split(",") if os.getenv("CORS_ORIGINS") else [],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["X-API-Key", "Content-Type"],
@@ -84,6 +107,16 @@ def health_check():
 @app.post("/consent", response_model=ConsentResponse)
 def grant_consent(consent: ConsentCreate, db: Session = Depends(get_db), _: str = Depends(verify_api_key)):
     try:
+        # Idempotency: if an active consent already exists for this
+        # (user_id, purpose), return it instead of creating a duplicate.
+        existing = db.query(Consent).filter(
+            Consent.user_id == consent.user_id,
+            Consent.purpose == consent.purpose,
+            Consent.granted == True,
+        ).first()
+        if existing:
+            return existing
+
         new_consent = Consent(
             id=str(uuid.uuid4()),
             user_id=consent.user_id,
@@ -95,6 +128,18 @@ def grant_consent(consent: ConsentCreate, db: Session = Depends(get_db), _: str 
         db.commit()
         db.refresh(new_consent)
         return new_consent
+    except IntegrityError:
+        # Concurrent insert raced past the pre-check and hit the unique index.
+        db.rollback()
+        existing = db.query(Consent).filter(
+            Consent.user_id == consent.user_id,
+            Consent.purpose == consent.purpose,
+            Consent.granted == True,
+        ).first()
+        if existing:
+            return existing
+        logger.exception("Integrity error in grant_consent")
+        raise HTTPException(status_code=409, detail="Consent conflict")
     except SQLAlchemyError:
         db.rollback()
         logger.exception("Database error in grant_consent")
