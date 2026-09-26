@@ -1,8 +1,11 @@
 # Core dependencies
-fastapi==0.109.0
-uvicorn==0.27.0
-sqlalchemy==2.0.25
-pydantic==2.5.3
+fastapi==0.115.14
+uvicorn==0.30.6
+sqlalchemy==2.0.35
+pydantic==2.9.2
+
+# Pinned transitive dependency (fastapi/starlette compatibility)
+starlette==0.40.0
 
 # Testing
 pytest==8.3.4
