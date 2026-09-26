@@ -1,8 +1,9 @@
 import re
 import uuid as uuid_module
-from pydantic import BaseModel, ConfigDict, Field, field_validator
 from datetime import datetime
 from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Valid user_id pattern: alphanumeric, hyphens, underscores, dots, @
 USER_ID_PATTERN = re.compile(r"^[a-zA-Z0-9._@-]+$")
