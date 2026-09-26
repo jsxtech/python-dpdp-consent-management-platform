@@ -189,6 +189,12 @@ export DATABASE_URL="postgresql://user:password@localhost/dpdp_db"
 export DATABASE_URL="mysql+pymysql://user:password@localhost/dpdp_db"
 ```
 
+> **Note on MySQL:** the one-active-consent-per-purpose guarantee is enforced
+> at the database level via a *partial* unique index, which only SQLite and
+> PostgreSQL support. On MySQL this DB-level guarantee is not enforced and
+> uniqueness relies on the application-level check in `grant_consent`. Use
+> PostgreSQL for the strongest guarantee under high concurrency.
+
 ## DPDP Act 2023 Compliance
 
 This platform implements core requirements of India's Digital Personal Data Protection Act:
