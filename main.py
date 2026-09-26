@@ -5,20 +5,20 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException, Depends, Path, Query, Security
+from fastapi import Depends, FastAPI, HTTPException, Path, Query, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import APIKeyHeader
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 
-from models import SessionLocal, Consent, AuditLog, Base, engine, utc_now
+from models import AuditLog, Base, Consent, SessionLocal, engine, utc_now
 from schemas import (
+    USER_ID_PATTERN,
+    AuditLogResponse,
     ConsentCreate,
     ConsentResponse,
     ConsentWithdraw,
-    AuditLogResponse,
     WithdrawResponse,
-    USER_ID_PATTERN,
 )
 
 logger = logging.getLogger(__name__)
